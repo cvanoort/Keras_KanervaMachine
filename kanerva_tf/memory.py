@@ -1,14 +1,13 @@
+import functools
+from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
+
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow.python.keras.layers import Layer, InputSpec
-from tensorflow.python.keras.initializers import constant, zeros, truncated_normal
 from tensorflow.python.framework.tensor_shape import TensorShape
 from tensorflow.python.keras import backend
+from tensorflow.python.keras.initializers import constant, zeros, truncated_normal
+from tensorflow.python.keras.layers import Layer, InputSpec
 from tensorflow_probability.python.distributions import MultivariateNormalDiag
-import functools
-from typing import Optional, Dict, Any, Union, Tuple, Callable
-
-from KanervaMemory.MemoryState import MemoryState
 
 
 def define_scope(scope: str = None):
@@ -25,20 +24,42 @@ def define_scope(scope: str = None):
     return decorator
 
 
+class MemoryState(NamedTuple):
+    mean: tf.Tensor
+    row_covariance: tf.Tensor
+
+    def get_distribution(self):
+        return tfp.distributions.MultivariateNormalFullCovariance(
+            loc=self.mean,
+            covariance_matrix=self.row_covariance,
+            name="memory_distribution",
+        )
+
+    def sample(
+            self,
+            sample_shape: Union[int, tf.Tensor, Tuple[int, ...], Tuple[tf.Tensor, ...]] = (),
+            seed: int = None,
+            name="sample_memory",
+    ):
+        return self.get_distribution().sample(sample_shape, seed, name)
+
+
 class Memory(Layer):
-    def __init__(self,
-                 code_size: int,
-                 memory_size: int,
-                 iteration_count: int = 1,
-                 w_prior_stddev: float = 1.0,
-                 initial_w_stddev: float = 0.3,
-                 observational_noise_stddev: float = 1.0,
-                 use_addressing_matrix=False,
-                 use_memory_mean_as_samples=True,
-                 use_w_mean_as_samples=True,
-                 batch_size: int = None,
-                 **kwargs):
-        super(Memory, self).__init__(**kwargs)
+    def __init__(
+            self,
+            code_size: int,
+            memory_size: int,
+            iteration_count: int = 1,
+            w_prior_stddev: float = 1.0,
+            initial_w_stddev: float = 0.3,
+            observational_noise_stddev: float = 1.0,
+            use_addressing_matrix=False,
+            use_memory_mean_as_samples=True,
+            use_w_mean_as_samples=True,
+            batch_size: int = None,
+            **kwargs
+    ):
+        super().__init__(**kwargs)
 
         self.code_size = code_size
         self.memory_size = memory_size
@@ -81,7 +102,7 @@ class Memory(Layer):
         with tf.name_scope("w_prior"):
             self._w_prior_stddev = tf.constant(self.w_prior_stddev,
                                                name="w_prior_stddev")
-    
+
             self.w_prior_distribution = MultivariateNormalDiag(loc=tf.zeros(shape=[self._memory_size]),
                                                                scale_identity_multiplier=self._w_prior_stddev,
                                                                name="w_prior_distribution")
@@ -139,7 +160,7 @@ class Memory(Layer):
             batch_size = tf.shape(inputs)[0]
             prior_state = self.get_prior_state(batch_size)
 
-        # TODO : Remove need for transpose !
+        # TODO : Remove need for transpose!
         inputs = tf.transpose(inputs, perm=[1, 0, 2])
         posterior_memory, w_divergence_episode, memory_divergence_episode = self.update_state(prior_state, inputs)
 
@@ -241,10 +262,11 @@ class Memory(Layer):
 
         return posterior_memory, w_divergence_episode, memory_divergence_episode
 
-    def update_state_optimization(self,
-                                  memory_state: MemoryState,
-                                  z: tf.Tensor
-                                  ) -> Tuple[MemoryState, tf.Tensor, tf.Tensor]:
+    def update_state_optimization(
+            self,
+            memory_state: MemoryState,
+            z: tf.Tensor
+    ) -> Tuple[MemoryState, tf.Tensor, tf.Tensor]:
         initial_memory = memory_state
         initial_i = tf.constant(0, name="optimization_loop_initial_i")
 
@@ -272,10 +294,12 @@ class Memory(Layer):
 
         return memory_state, w_mean, w_sample
 
-    def update_memory(self, memory_state: MemoryState,
-                      w_sample: tf.Tensor,
-                      z_mean: tf.Tensor
-                      ) -> MemoryState:
+    def update_memory(
+            self,
+            memory_state: MemoryState,
+            w_sample: tf.Tensor,
+            z_mean: tf.Tensor
+    ) -> MemoryState:
         initial_memory_mean, initial_memory_row_covariance = memory_state
 
         predicted_z_mean = self.z_mean_from_memory(w_sample, initial_memory_mean, name="predicted_z")

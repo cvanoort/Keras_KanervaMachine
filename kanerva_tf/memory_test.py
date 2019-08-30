@@ -6,7 +6,7 @@ from tensorflow.python.keras.callbacks import TensorBoard
 from tensorflow.python.keras.layers import Input, Conv3D, Conv3DTranspose, Reshape
 from tensorflow.python.keras.models import Model
 
-from .memory import Memory
+from kanerva_tf import Memory
 
 
 def main(
@@ -17,6 +17,11 @@ def main(
     height=64,
     memory_size=32,
 ):
+    # Prevent TensorFlow from allocating all available GPU memory
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    tf.keras.backend.set_session(tf.Session(config=config))
+
     input_layer = Input([episode_length, width, height, 1])
     layer = input_layer
 

@@ -132,9 +132,11 @@ class Memory(Layer):
         with tf.name_scope("prior_state"):
             # region Prior memory mean
             mean_initializer = truncated_normal(mean=0.0, stddev=1.0)
-            self.prior_memory_mean = self.add_weight(name="prior_memory_mean",
-                                                     shape=[self.memory_size, self.code_size],
-                                                     initializer=mean_initializer)
+            self.prior_memory_mean = self.add_weight(
+                name="prior_memory_mean",
+                shape=[self.memory_size, self.code_size],
+                initializer=mean_initializer,
+            )
             # endregion
 
             # region Prior memory covariance
@@ -143,6 +145,9 @@ class Memory(Layer):
                                                  initializer=zeros)
             variance = log_variance_scale * tf.ones([self.memory_size]) + backend.epsilon()
             self.prior_memory_covariance = tf.matrix_diag(variance, name="prior_memory_covariance")
+            # tf.matrix_diag returns a tensor, that does not have the trainable attribute
+            # This can break some downstream usages that inspect model parameters
+            self.prior_memory_covariance.trainable = False
             # endregion
 
         self._non_trainable_weights += [self.prior_memory_covariance, self.prior_memory_mean]
@@ -253,9 +258,6 @@ class Memory(Layer):
         loop_outputs: Tuple[tf.Tensor, MemoryState, tf.TensorArray, tf.TensorArray] = loop_outputs
 
         _, posterior_memory, w_divergence_array, memory_divergence_array = loop_outputs
-        # _, posterior_memory, w_array, w_divergence_array, memory_divergence_array = loop_outputs
-
-        # w_episode = w_array.concat(name="w_episode")
         w_divergence_episode = w_divergence_array.concat(name="w_divergence_episode")
         memory_divergence_episode = memory_divergence_array.concat(name="memory_divergence_episode")
         # endregion
@@ -461,5 +463,5 @@ class Memory(Layer):
             "observational_noise_stddev": self.observational_noise_stddev,
             "use_addressing_matrix": self.use_addressing_matrix
         }
-        base_config = super(Memory, self).get_config()
+        base_config = super().get_config()
         return {**base_config, **config}

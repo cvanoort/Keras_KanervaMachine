@@ -6,7 +6,7 @@ from tensorflow.python.keras.callbacks import TensorBoard
 from tensorflow.python.keras.layers import Input, Conv3D, Conv3DTranspose, Reshape
 from tensorflow.python.keras.models import Model
 
-from .memory import Memory
+from kanerva_tf import Memory
 
 
 def main(
@@ -46,6 +46,10 @@ def main(
 
     model.compile("adam", loss="mse", metrics=["mse"])
     model.summary()
+
+    for var in model.variables:
+        print(var, end=' ')
+        print(var.trainable)
 
     dataset_input_tensor = tf.random.normal(shape=[episode_length, width, height, 1])
     dataset_input_tensor = tf.clip_by_value(dataset_input_tensor, 0.0, 1.0)

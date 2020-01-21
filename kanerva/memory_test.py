@@ -6,7 +6,7 @@ from tensorflow.python.keras.callbacks import TensorBoard
 from tensorflow.python.keras.layers import Input, Conv3D, Conv3DTranspose, Reshape
 from tensorflow.python.keras.models import Model
 
-from kanerva_tf import Memory
+from kanerva import Memory
 
 
 def main(

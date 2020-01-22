@@ -5,5 +5,5 @@ setup(
     name='kanerva',
     version='0.0.1',
     install_requires=['tensorflow', 'tensorflow_probability'],
-    packages=find_packages,
+    packages=find_packages(),
 )
